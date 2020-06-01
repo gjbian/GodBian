@@ -51,6 +51,72 @@
     <header>
       
   
+    <h1 class="title"><a href="/GodBian/2020/06/01/UnityShader 从入门到盖棺(三)/">UnityShader 从入门到盖棺(三)</a></h1>
+  
+
+      
+        <time datetime="2020-06-01T15:00:15.223Z">2020-06-01</time>
+      
+    </header>
+    <div class="entry">
+      
+        <p><img src="https://img-blog.csdnimg.cn/20200601224649614.jpg?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FhMTA0MTMzNTg1NQ==,size_16,color_FFFFFF,t_70#pic_center" alt="gta5_car"></p>
+<h3 id="Phong和Blinn模型"><a href="#Phong和Blinn模型" class="headerlink" title="Phong和Blinn模型"></a>Phong和Blinn模型</h3><p>上一篇我们讲到了Lambert模型，这次我们讲一下Phong和Blinn光照模型。这两种模型都是基于Lambert模型加入了高光部分。</p>
+<p>接下来的实现，我们用于完善我们上次房子场景的周边环境。这是我上次构建完房子场景后的一个大胆想法，就是把所有知识点放在我们的房子场景上，然后大家看到场景的一部分可能就能想起某个点(→_→)。</p>
+<p>来，老规矩，上结果图。</p>
+<p><img src="https://img-blog.csdnimg.cn/20200601223856392.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FhMTA0MTMzNTg1NQ==,size_16,color_FFFFFF,t_70" alt="sc1"></p>
+<p>我们先来实现phong光照模型。实现之前，我们在场景中摆两个球，然后创建一个新的材质，名为3_BallPhong。材质的Shader先选择上一篇的2_WallDiffuse。然后贴图使用Textures/3_MetalDiffuse。然后我们就可以看到结果如下</p>
+<p><img src="https://img-blog.csdnimg.cn/20200601223803983.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FhMTA0MTMzNTg1NQ==,size_16,color_FFFFFF,t_70" alt="dc1"></p>
+<p><img src="https://img-blog.csdnimg.cn/20200601223749566.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FhMTA0MTMzNTg1NQ==,size_16,color_FFFFFF,t_70" alt="dc2"></p>
+<p>这是上一篇的效果，只应用了漫反射光。下面我们开始加入phong模型中的高光，所谓的高光其实是光照照射到表面的镜面反射部分，就跟镜子反射光照一样的。所以我们需要算出光照通过表面直接反射到人眼的部分，只需要算出光反射向量和视线向量的夹角即可。</p>
+<p><img src="https://img-blog.csdnimg.cn/20200601223848590.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FhMTA0MTMzNTg1NQ==,size_16,color_FFFFFF,t_70" alt="math"></p>
+<p>创建Shader文件3_CopperPhong.shader, 然后把上一篇的2_WallDiffuse.shader的内容全部复制过来。把片段着色器代码修改成下面的样子</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">fixed4 frag(v2f i) : SV_Target &#123;</span><br><span class="line">	float3 worldNormal &#x3D; normalize(i.worldNormal);</span><br><span class="line">	float3 worldLightDir &#x3D; normalize(UnityWorldSpaceLightDir(i.worldPos));</span><br><span class="line">	fixed4 albedo &#x3D; tex2D(_MainTex, i.uv);</span><br><span class="line"></span><br><span class="line">	fixed3 ambient &#x3D; UNITY_LIGHTMODEL_AMBIENT * albedo.rgb;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    float lambert &#x3D; saturate(dot(worldNormal, worldLightDir));</span><br><span class="line">    fixed3 diffuse &#x3D; _LightColor0.rgb * albedo.rgb  * lambert;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; phong高光部分</span><br><span class="line">    &#x2F;&#x2F; 算出光照和表面的反射向量，Unity提供内置函数reflect帮我们完成。</span><br><span class="line">    float3 worldRefelctDir &#x3D; normalize(reflect(-worldLightDir, worldNormal));</span><br><span class="line">    float3 worldViewDir &#x3D; normalize(UnityWorldSpaceViewDir(i.worldPos));</span><br><span class="line">    &#x2F;&#x2F; 用反射向量和视线向量的夹角模拟高光的影响程度</span><br><span class="line">    float spec &#x3D; saturate(dot(worldRefelctDir, worldViewDir));</span><br><span class="line">    fixed3 specular &#x3D; _LightColor0.rgb * _SpecularColor.rgb * spec;</span><br><span class="line"></span><br><span class="line">	return fixed4(ambient + diffuse + specular, albedo.a); &#x2F;&#x2F; 输出物体主颜色</span><br></pre></td></tr></table></figure>
+
+<p>然后我们把一开始创建的3_BallPhong.mat材质的Shader改成我们新写的这个Shader，注意这里用到了一个_SpecularColor变量，他是一个颜色变量，是作为输入参数传进来的。读者应该记得怎么添加一个输入颜色变量吧，不记得的可以去看看源码的Properties属性块复习一下，这个变量声明的代码我没有贴出来的。我们在属性面板把这个颜色调整为金属球的颜色。</p>
+<p><img src="https://img-blog.csdnimg.cn/20200601223837429.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FhMTA0MTMzNTg1NQ==,size_16,color_FFFFFF,t_70" alt="pickcolor"></p>
+<p>然后效果图如下</p>
+<p><img src="https://img-blog.csdnimg.cn/20200601223817178.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FhMTA0MTMzNTg1NQ==,size_16,color_FFFFFF,t_70" alt="fc1"></p>
+<p>大家可以看到，加入高光后铜球的一部分的确很亮。但是现实生活中金属球的高光好像范围没有那么大。事实上，上面的高光系数计算漏了phong光照模型里很重要的一步(我自己做的时候漏了 - -)。那就是对高光系数做一个幂次方，让高光范围变窄，因为现实中，金属高光只有直接反射到人眼的最明显，然后随着角度变大，衰减很快。因此我们再定义一个输入变量_Shiness（这是一个RANGE变量，代表用户可以在一个范围内选取某个值）来完善高光系数的计算。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 在属性块中定义_Shiness变量</span><br><span class="line">_Shiness (&quot;shiness&quot;, RANGE(8.0, 64.0)) &#x3D; 8.0</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 在CGPROGRAM-ENDCG代码中声明_Shiness变量</span><br><span class="line">float _Shiness;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 修改Spec系数的计算</span><br><span class="line">float spec &#x3D; pow(saturate(dot(worldRefelctDir, worldViewDir)), _Shiness);</span><br></pre></td></tr></table></figure>
+
+<p>修改代码后的结果图如下，读者可以自己调整_Shiness查看效果。</p>
+<p><img src="https://img-blog.csdnimg.cn/20200601223830457.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FhMTA0MTMzNTg1NQ==,size_16,color_FFFFFF,t_70" alt="fc2"></p>
+<p>理论上，向光面的高光分量可以无限趋向于0，但不应该为0。但是phong光照模型在反射光照和视线夹角大于90度时，是会被截断为0的。在某些情况下，这样的截断会导致高光区域出现明显的断层。可以参考<a href="https://learnopengl-cn.github.io/05%20Advanced%20Lighting/01%20Advanced%20Lighting/" target="_blank" rel="noopener">LearnOpengl</a>上的效果图</p>
+<p>接下来我们实现Blinn光照模型。Blinn光照模型在Phong光照模型上做了一点修改。提出了半程向量，即光照法向和视线方向的中间向量。然后用这个半程向量和法线进行点乘来算高光系数。读者会发现，用这样的计算方法，向光面的高光系数就不会小于0。</p>
+<p>创建一个新的Shader文件，命名为3_CopperBlinn.shader。把3_CopperPhong的代码复制到这里。然后修改spec系数部分为</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; blinn高光部分</span><br><span class="line">float3 worldViewDir &#x3D; normalize(UnityWorldSpaceViewDir(i.worldPos));</span><br><span class="line">&#x2F;&#x2F; 算出半程向量</span><br><span class="line">float3 halfDir &#x3D; normalize(worldLightDir + worldViewDir);</span><br><span class="line">&#x2F;&#x2F; 用反射向量和视线向量的夹角模拟高光的影响程度</span><br><span class="line">float spec &#x3D; pow(saturate(dot(worldNormal, halfDir)), _Shiness);</span><br><span class="line">fixed3 specular &#x3D; _LightColor0.rgb *_SpecularColor.rgb * spec;</span><br></pre></td></tr></table></figure>
+
+<p>新建一个材质，应用3_CopperBlinn.shader，把这个材质应用到右边的球体，然后把shiness系数调到32(shiness系数相同下，blinn光照的高光范围比phong光照要大，读者可以想想原因)。效果图如下</p>
+<p><img src="https://img-blog.csdnimg.cn/20200601223734422.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FhMTA0MTMzNTg1NQ==,size_16,color_FFFFFF,t_70" alt="bc1"></p>
+<p>好了，以上就是phong光照模型和blinn光照模型。这两个模型没有绝对的正确与否，大家都是经验模型。实际用哪个需要在不同的情况下考虑。最后我们再看下最终场景图，大家可以对比一下一开始的lambert模型。</p>
+<p><img src="https://img-blog.csdnimg.cn/20200601223856392.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FhMTA0MTMzNTg1NQ==,size_16,color_FFFFFF,t_70" alt="sc1"></p>
+<h3 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h3><p>第三篇的分享结束了，有疑问就留言，之后的源码会越来越少，发现不对劲可以到Github上看源码。</p>
+<p>但不管怎样，支持作者环节必不可缺。</p>
+<p><img src="https://img-blog.csdnimg.cn/20200517160234929.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FhMTA0MTMzNTg1NQ==,size_16,color_FFFFFF,t_70#pic_center" alt="vxpay"></p>
+<h3 id="链接"><a href="#链接" class="headerlink" title="链接"></a>链接</h3><p>github地址：<a href="https://github.com/gjbian/Unity-Shader-Study" target="_blank" rel="noopener">https://github.com/gjbian/Unity-Shader-Study</a></p>
+<p>上一篇：<a href="https://blog.csdn.net/qa1041335855/article/details/106318380" target="_blank" rel="noopener">UnityShader 从入门到盖棺(二)</a></p>
+
+      
+    </div>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+      </footer>
+  </div>
+</article>
+
+
+
+
+
+  <article class="post">
+  <div class="post-content">
+    <header>
+      
+  
     <h1 class="title"><a href="/GodBian/2020/05/24/UnityShader 从入门到盖棺(二)/">UnityShader 从入门到盖棺(二)</a></h1>
   
 
@@ -279,6 +345,10 @@
 <div class="widget tag">
   <h3 class="title">Recent Posts</h3>
   <ul class="entry">
+    
+      <li>
+        <a href="/GodBian/2020/06/01/UnityShader 从入门到盖棺(三)/">UnityShader 从入门到盖棺(三)</a>
+      </li>
     
       <li>
         <a href="/GodBian/2020/05/24/UnityShader 从入门到盖棺(二)/">UnityShader 从入门到盖棺(二)</a>
